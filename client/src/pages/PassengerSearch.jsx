@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Navigation, Star, User as UserIcon, Clock, Calendar, Bus } from 'lucide-react';
 import api from '../api/client';
 import StatusBadge from '../components/StatusBadge';
@@ -54,7 +54,12 @@ function ResultCard({ result, pinnedIds, onTogglePin, onOpenMap }) {
 
 export default function PassengerSearch() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ from: '', to: '', date: '' });
+  const [searchParams] = useSearchParams();
+  const [form, setForm] = useState({
+    from: searchParams.get('from') || '',
+    to: searchParams.get('to') || '',
+    date: searchParams.get('date') || '',
+  });
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -73,14 +78,13 @@ export default function PassengerSearch() {
 
   useEffect(() => { loadPins(); }, []);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
+  const runSearch = async (from, to, date) => {
     setError('');
     setLoading(true);
     setResults(null);
     try {
-      const params = { from: form.from, to: form.to };
-      if (form.date) params.date = form.date;
+      const params = { from, to };
+      if (date) params.date = date;
       const { data } = await api.get('/routes/search', { params });
       setResults(data);
     } catch (err) {
@@ -88,6 +92,20 @@ export default function PassengerSearch() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // If the person arrived here from the Home page's quick-search (which
+  // passes ?from=&to=&date=), run the search immediately instead of making
+  // them retype it.
+  useEffect(() => {
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+    if (from && to) runSearch(from, to, searchParams.get('date') || '');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    runSearch(form.from, form.to, form.date);
   };
 
   const togglePin = async (vehicleId) => {

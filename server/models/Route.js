@@ -18,7 +18,8 @@ const routeSchema = new mongoose.Schema(
     startLocation: { type: String, required: true },
     endLocation: { type: String, required: true },
     stops: { type: [stopSchema], default: [] },
-    distance: { type: Number, default: 0 },
+    distance: { type: Number, default: 0 }, // km
+    durationMin: { type: Number, default: 0 }, // real-world travel time in minutes (from routing API)
     color: { type: String, default: '#2563eb' },
   },
   { timestamps: true }

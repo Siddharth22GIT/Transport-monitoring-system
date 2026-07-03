@@ -277,6 +277,7 @@ function RoutesPanel() {
         endLocation: endText,
         stops,
         distance: roadPath?.distanceKm || 0,
+        durationMin: roadPath?.durationMin || 0,
       });
       setName(''); setStartText(''); setEndText(''); setStartPoint(null); setEndPoint(null); setRoadPath(null);
       load();
@@ -344,7 +345,7 @@ function RoutesPanel() {
               <span className="h-8 w-8 rounded-lg" style={{ backgroundColor: r.color }} />
               <div>
                 <div className="font-bold text-sm">{r.name}</div>
-                <div className="text-xs text-[var(--color-ink-dim)]">{r.startLocation} → {r.endLocation}{r.distance ? ` · ${r.distance} km` : ''}</div>
+                <div className="text-xs text-[var(--color-ink-dim)]">{r.startLocation} → {r.endLocation}{r.distance ? ` · ${r.distance} km` : ''}{r.durationMin ? ` · ~${Math.round(r.durationMin)} min` : ''}</div>
               </div>
             </div>
             <button onClick={() => handleDelete(r._id)} className="grid place-items-center h-8 w-8 rounded-lg text-[var(--color-stop)] hover:bg-[var(--color-stop)]/10 transition">

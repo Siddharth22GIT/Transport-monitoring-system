@@ -1,8 +1,9 @@
 const Vehicle = require('../models/Vehicle');
 const { pointAtFraction, totalPathLengthKm } = require('../utils/geo');
 
-const TICK_MS = 800; // how often we move the vehicle and broadcast
-const PROGRESS_PER_TICK = 0.008; // ~2 minutes to complete a full route, in small smooth steps
+const TICK_MS = 1000; // how often we move the vehicle and broadcast
+const DEFAULT_SPEED_KMH = 30; // used only if a route has no duration/distance data at all
+const MIN_DURATION_MIN = 1; // safety floor so a mis-saved 0-duration route doesn't divide by zero
 
 let ioRef = null;
 const activeTimers = new Map(); // vehicleId (string) -> setInterval handle
@@ -20,10 +21,19 @@ const stopSimulation = (vehicleId) => {
   }
 };
 
-// Starts (or resumes) moving `vehicle` along `route.stops`. Emits a
-// 'broadcastLocation' event on every tick with a small incremental move,
-// never a large jump - this is what makes the map marker glide instead
-// of teleport.
+// Works out how long the whole trip should really take. Prefers the
+// route's durationMin (fetched from the road-routing API when the admin
+// created it) so the bus takes exactly as long on the map as it would in
+// real life. Falls back to an estimate from distance, then a flat default.
+const resolveDurationMinutes = (route, totalKm) => {
+  if (route.durationMin && route.durationMin > 0) return route.durationMin;
+  if (totalKm > 0) return (totalKm / DEFAULT_SPEED_KMH) * 60;
+  return 10;
+};
+
+// Starts (or resumes) moving `vehicle` along `route.stops` at the route's
+// real travel time - a 40 minute route takes 40 real minutes on the map,
+// broken into small smooth steps rather than one big jump.
 const startSimulation = (vehicle, route) => {
   if (!ioRef) return;
   if (!route || !route.stops || route.stops.length < 2) return;
@@ -32,6 +42,9 @@ const startSimulation = (vehicle, route) => {
 
   const path = route.stops.map((s) => ({ lat: s.lat, lng: s.lng }));
   const totalKm = totalPathLengthKm(path);
+  const durationMin = Math.max(MIN_DURATION_MIN, resolveDurationMinutes(route, totalKm));
+  const totalMs = durationMin * 60 * 1000;
+  const progressPerTick = TICK_MS / totalMs;
   const key = String(vehicle._id);
 
   const timer = setInterval(async () => {
@@ -42,14 +55,13 @@ const startSimulation = (vehicle, route) => {
         return;
       }
 
-      const nextProgress = Math.min(1, (fresh.routeProgress || 0) + PROGRESS_PER_TICK);
+      const nextProgress = Math.min(1, (fresh.routeProgress || 0) + progressPerTick);
       const point = pointAtFraction(path, nextProgress);
-      const kmThisTick = totalKm * PROGRESS_PER_TICK;
-      const impliedSpeedKmh = Math.round((kmThisTick / (TICK_MS / 3600000)) * 100) / 100;
+      const impliedSpeedKmh = totalKm > 0 ? Math.round((totalKm / durationMin) * 60 * 10) / 10 : 0;
 
       fresh.currentLocation = { type: 'Point', coordinates: [point.lng, point.lat] };
       fresh.routeProgress = nextProgress;
-      fresh.speed = nextProgress >= 1 ? 0 : Math.min(60, impliedSpeedKmh); // cap displayed speed for realism
+      fresh.speed = nextProgress >= 1 ? 0 : impliedSpeedKmh;
       fresh.lastUpdated = new Date();
       if (nextProgress >= 1) fresh.status = 'completed';
       await fresh.save();

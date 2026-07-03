@@ -23,7 +23,7 @@ const getRoute = async (req, res, next) => {
 
 const createRoute = async (req, res, next) => {
   try {
-    const { name, startLocation, endLocation, stops, distance } = req.body;
+    const { name, startLocation, endLocation, stops, distance, durationMin } = req.body;
     if (!name || !startLocation || !endLocation || !stops || stops.length < 2) {
       return res.status(400).json({ message: 'name, startLocation, endLocation and at least 2 stops (start+end) are required' });
     }
@@ -31,7 +31,7 @@ const createRoute = async (req, res, next) => {
     const existingCount = await Route.countDocuments();
     const color = Route.ROUTE_COLORS[existingCount % Route.ROUTE_COLORS.length];
 
-    const route = await Route.create({ name, startLocation, endLocation, stops, distance, color });
+    const route = await Route.create({ name, startLocation, endLocation, stops, distance, durationMin, color });
     res.status(201).json(route);
   } catch (err) {
     next(err);
