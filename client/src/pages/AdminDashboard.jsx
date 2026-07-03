@@ -123,7 +123,6 @@ function VehiclesPanel() {
         <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
           className="rounded-xl bg-[var(--color-surface-alt)] border-2 border-[var(--color-border)] px-3 py-2.5 text-sm font-medium">
           <option value="bus">Bus</option>
-          <option value="train">Train</option>
         </select>
         <input placeholder="Capacity" type="number" value={form.capacity}
           onChange={(e) => setForm({ ...form, capacity: e.target.value })}
