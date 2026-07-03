@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-display: 'Sora', sans-serif;
+  --font-body: 'Inter', sans-serif;
+
+  --color-bg: #f5f7fb;          /* soft off-white page background */
+  --color-surface: #ffffff;     /* card surface */
+  --color-surface-alt: #eef1f8; /* subtle secondary surface */
+  --color-border: #e2e6f0;
+  --color-ink: #14161f;         /* primary text - near black */
+  --color-ink-dim: #61667a;     /* secondary text */
+
+  --color-primary: #2f5fff;     /* bold electric blue - primary CTA/brand */
+  --color-primary-dark: #1f43d6;
+  --color-accent: #ff8a1e;      /* bus-signal orange - secondary CTA */
+  --color-go: #16a34a;          /* running/active */
+  --color-idle: #94a3b8;        /* idle/off */
+  --color-stop: #e11d48;        /* delayed/error */
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+.leaflet-container {
+  background: var(--color-surface-alt) !important;
+  font-family: var(--font-body);
+}
+
+/* Smooth marker glide - complements the small server-side position steps */
+.bus-marker-icon {
+  transition: transform 0.7s linear;
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.45); }
+  100% { box-shadow: 0 0 0 12px rgba(22, 163, 74, 0); }
+}
+.pulse-live {
+  animation: pulse-ring 1.6s ease-out infinite;
+}
