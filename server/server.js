@@ -42,7 +42,7 @@ app.use('/api', userRoutes);
 
 registerSocketHandlers(io);
 simulator.setIo(io); // lets admin-triggered status changes drive smooth movement
-
+simulator.resumeInFlightVehicles();
 app.use(notFound);
 app.use(errorHandler);
 

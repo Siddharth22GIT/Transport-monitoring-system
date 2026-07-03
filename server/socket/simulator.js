@@ -1,12 +1,12 @@
 const Vehicle = require('../models/Vehicle');
 const { pointAtFraction, totalPathLengthKm } = require('../utils/geo');
 
-const TICK_MS = 1000; // how often we move the vehicle and broadcast
-const DEFAULT_SPEED_KMH = 30; // used only if a route has no duration/distance data at all
-const MIN_DURATION_MIN = 1; // safety floor so a mis-saved 0-duration route doesn't divide by zero
+const TICK_MS = 1000;
+const DEFAULT_SPEED_KMH = 30;
+const MIN_DURATION_MIN = 1;
 
 let ioRef = null;
-const activeTimers = new Map(); // vehicleId (string) -> setInterval handle
+const activeTimers = new Map();
 
 const setIo = (io) => {
   ioRef = io;
@@ -21,24 +21,17 @@ const stopSimulation = (vehicleId) => {
   }
 };
 
-// Works out how long the whole trip should really take. Prefers the
-// route's durationMin (fetched from the road-routing API when the admin
-// created it) so the bus takes exactly as long on the map as it would in
-// real life. Falls back to an estimate from distance, then a flat default.
 const resolveDurationMinutes = (route, totalKm) => {
   if (route.durationMin && route.durationMin > 0) return route.durationMin;
   if (totalKm > 0) return (totalKm / DEFAULT_SPEED_KMH) * 60;
   return 10;
 };
 
-// Starts (or resumes) moving `vehicle` along `route.stops` at the route's
-// real travel time - a 40 minute route takes 40 real minutes on the map,
-// broken into small smooth steps rather than one big jump.
 const startSimulation = (vehicle, route) => {
   if (!ioRef) return;
   if (!route || !route.stops || route.stops.length < 2) return;
 
-  stopSimulation(vehicle._id); // avoid double intervals if already running
+  stopSimulation(vehicle._id);
 
   const path = route.stops.map((s) => ({ lat: s.lat, lng: s.lng }));
   const totalKm = totalPathLengthKm(path);
@@ -86,4 +79,20 @@ const startSimulation = (vehicle, route) => {
   activeTimers.set(key, timer);
 };
 
-module.exports = { setIo, startSimulation, stopSimulation };
+// Called once at server boot. If the process restarted (Render free-tier
+// spin-down, crash, deploy) while a bus was mid-route, its DB status is
+// still 'running' but no interval is actually driving it anymore - this
+// resumes those from wherever routeProgress left off instead of leaving
+// them stuck.
+const resumeInFlightVehicles = async () => {
+  if (!ioRef) return;
+  const Route = require('../models/Route');
+  const running = await Vehicle.find({ status: 'running' });
+  for (const vehicle of running) {
+    if (!vehicle.routeId) continue;
+    const route = await Route.findById(vehicle.routeId);
+    if (route) startSimulation(vehicle, route);
+  }
+};
+
+module.exports = { setIo, startSimulation, stopSimulation, resumeInFlightVehicles };
