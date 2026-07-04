@@ -123,6 +123,7 @@ function VehiclesPanel() {
         <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
           className="rounded-xl bg-[var(--color-surface-alt)] border-2 border-[var(--color-border)] px-3 py-2.5 text-sm font-medium">
           <option value="bus">Bus</option>
+          <option value="train">Train</option>
         </select>
         <input placeholder="Capacity" type="number" value={form.capacity}
           onChange={(e) => setForm({ ...form, capacity: e.target.value })}
@@ -393,7 +394,13 @@ function SchedulesPanel() {
   const [vehicles, setVehicles] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [form, setForm] = useState({ vehicleId: '', routeId: '', departureTime: '', arrivalTime: '', date: '' });
+  const [selectedDays, setSelectedDays] = useState([]);
   const [error, setError] = useState('');
+
+  const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const toggleDay = (day) => {
+    setSelectedDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
+  };
 
   const load = () => {
     api.get('/schedules').then((res) => setSchedules(res.data));
@@ -406,8 +413,9 @@ function SchedulesPanel() {
     e.preventDefault();
     setError('');
     try {
-      await api.post('/schedules', { ...form, daysOfWeek: [] });
+      await api.post('/schedules', { ...form, daysOfWeek: selectedDays });
       setForm({ vehicleId: '', routeId: '', departureTime: '', arrivalTime: '', date: '' });
+      setSelectedDays([]);
       load();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create schedule');
@@ -441,6 +449,34 @@ function SchedulesPanel() {
         <input type="date" value={form.date}
           onChange={(e) => setForm({ ...form, date: e.target.value })}
           className="rounded-xl bg-[var(--color-surface-alt)] border-2 border-[var(--color-border)] px-3 py-2.5 text-sm font-medium" />
+
+        <div className="col-span-2 md:col-span-5">
+          <label className="block text-xs font-bold text-[var(--color-ink-dim)] mb-1.5 uppercase tracking-wide">
+            Runs on these days (takes priority over the one-off date above)
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {DAYS.map((day) => (
+              <button
+                key={day}
+                type="button"
+                onClick={() => toggleDay(day)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition ${
+                  selectedDays.includes(day)
+                    ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white'
+                    : 'border-[var(--color-border)] text-[var(--color-ink-dim)] hover:border-[var(--color-primary)]'
+                }`}
+              >
+                {day}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-[var(--color-ink-dim)] mt-1.5">
+            {selectedDays.length > 0
+              ? `The bus will auto-start every ${selectedDays.join(', ')} at ${form.departureTime || 'the selected time'} - no need to click Start.`
+              : 'Pick at least one day for the bus to start automatically at departure time. Leave empty to only use the one-off date.'}
+          </p>
+        </div>
+
         <button type="submit" className="col-span-2 md:col-span-5 flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] text-white py-2.5 text-sm font-bold hover:bg-[var(--color-primary-dark)] transition">
           <Plus size={16} /> Add schedule
         </button>
@@ -452,7 +488,10 @@ function SchedulesPanel() {
           <div key={s._id} className="flex items-center justify-between gap-3 rounded-2xl border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm">
             <div>
               <div className="font-mono font-bold text-sm">{s.vehicleId?.vehicleNumber || '—'} · {s.routeId?.name || '—'}</div>
-              <div className="text-xs text-[var(--color-ink-dim)]">{s.departureTime} - {s.arrivalTime} {s.date && `· ${s.date}`}</div>
+              <div className="text-xs text-[var(--color-ink-dim)]">
+                {s.departureTime} - {s.arrivalTime}
+                {s.daysOfWeek?.length > 0 ? ` · ${s.daysOfWeek.join(', ')} (auto)` : s.date ? ` · ${s.date}` : ''}
+              </div>
             </div>
             <button onClick={() => handleDelete(s._id)} className="grid place-items-center h-8 w-8 rounded-lg text-[var(--color-stop)] hover:bg-[var(--color-stop)]/10 transition">
               <Trash2 size={15} />

@@ -7,6 +7,7 @@ import api from '../api/client';
 import socket from '../api/socket';
 import VehicleMarker from '../components/VehicleMarker';
 import StatusBadge from '../components/StatusBadge';
+import { notify, areNotificationsEnabled } from '../utils/notifications';
 
 const DEFAULT_CENTER = [28.6139, 77.209]; // fallback: New Delhi
 
@@ -28,6 +29,8 @@ export default function LiveMap() {
   const [routes, setRoutes] = useState([]);
   const [selectedRouteId, setSelectedRouteId] = useState('all');
   const [selectedVehicleId, setSelectedVehicleId] = useState(null);
+  const trackedVehicleNumberRef = useRef(null);
+  const milestoneRef = useRef({}); // vehicleNumber -> { half, arriving }
 
   useEffect(() => {
     const load = async () => {
@@ -46,9 +49,14 @@ export default function LiveMap() {
   }, [focusVehicleNumber]);
 
   useEffect(() => {
+    const byId = vehicles.find((v) => v._id === selectedVehicleId);
+    trackedVehicleNumberRef.current = focusVehicleNumber || byId?.vehicleNumber || null;
+  }, [focusVehicleNumber, selectedVehicleId, vehicles]);
+
+  useEffect(() => {
     socket.connect();
 
-    const onBroadcast = ({ vehicleId, latitude, longitude, speed, status }) => {
+    const onBroadcast = ({ vehicleId, latitude, longitude, speed, status, routeProgress, rerouted }) => {
       setVehicles((prev) =>
         prev.map((v) =>
           v.vehicleNumber === vehicleId
@@ -61,6 +69,35 @@ export default function LiveMap() {
             : v
         )
       );
+
+      // Only alert for the bus the passenger is actually watching (the one
+      // they searched for, or clicked in the sidebar) - not every bus on
+      // the map, which would be spammy.
+      if (trackedVehicleNumberRef.current !== vehicleId || !areNotificationsEnabled()) return;
+      if (typeof routeProgress !== 'number') return;
+
+      const known = milestoneRef.current[vehicleId];
+
+      if (!known) {
+        // First update we've seen for this vehicle this session.
+        notify('Journey started', "Your bus is on the move. We'll keep you posted along the way.", 'start');
+        milestoneRef.current[vehicleId] = { half: routeProgress >= 0.5, arriving: routeProgress >= 0.85 };
+        return;
+      }
+
+      if (rerouted) {
+        notify('Reached the destination', "The bus has reached its stop and is heading back. Safe travels!", 'reroute');
+        milestoneRef.current[vehicleId] = { half: false, arriving: false };
+        return;
+      }
+
+      if (!known.arriving && routeProgress >= 0.85) {
+        notify('Almost there', "You're about to reach your destination.", 'arriving');
+        known.arriving = true;
+      } else if (!known.half && routeProgress >= 0.5) {
+        notify('Halfway there', "We hope you're having a safe journey!", 'milestone');
+        known.half = true;
+      }
     };
 
     socket.on('broadcastLocation', onBroadcast);

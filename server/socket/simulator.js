@@ -1,4 +1,5 @@
 const Vehicle = require('../models/Vehicle');
+const Route = require('../models/Route');
 const { pointAtFraction, totalPathLengthKm } = require('../utils/geo');
 
 const TICK_MS = 1000;
@@ -6,7 +7,7 @@ const DEFAULT_SPEED_KMH = 30;
 const MIN_DURATION_MIN = 1;
 
 let ioRef = null;
-const activeTimers = new Map();
+const activeTimers = new Map(); // vehicleId (string) -> setInterval handle
 
 const setIo = (io) => {
   ioRef = io;
@@ -27,6 +28,11 @@ const resolveDurationMinutes = (route, totalKm) => {
   return 10;
 };
 
+// Starts (or resumes) moving `vehicle` along `route.stops` at the route's
+// real travel time. When it reaches the end, it automatically reroutes -
+// flips direction and drives back along the same path - so a bus keeps
+// running its route continuously instead of stopping dead once and
+// requiring the admin to manually restart it every time.
 const startSimulation = (vehicle, route) => {
   if (!ioRef) return;
   if (!route || !route.stops || route.stops.length < 2) return;
@@ -48,15 +54,27 @@ const startSimulation = (vehicle, route) => {
         return;
       }
 
-      const nextProgress = Math.min(1, (fresh.routeProgress || 0) + progressPerTick);
-      const point = pointAtFraction(path, nextProgress);
+      let nextProgress = (fresh.routeProgress || 0) + progressPerTick;
+      let direction = fresh.routeDirection || 1;
+      let rerouted = false;
+
+      if (nextProgress >= 1) {
+        // Reached the end of this leg - reroute: flip direction and
+        // continue from the start of the reversed leg rather than stopping.
+        nextProgress = 0;
+        direction = direction === 1 ? -1 : 1;
+        rerouted = true;
+      }
+
+      const displayedFraction = direction === 1 ? nextProgress : 1 - nextProgress;
+      const point = pointAtFraction(path, displayedFraction);
       const impliedSpeedKmh = totalKm > 0 ? Math.round((totalKm / durationMin) * 60 * 10) / 10 : 0;
 
       fresh.currentLocation = { type: 'Point', coordinates: [point.lng, point.lat] };
       fresh.routeProgress = nextProgress;
-      fresh.speed = nextProgress >= 1 ? 0 : impliedSpeedKmh;
+      fresh.routeDirection = direction;
+      fresh.speed = impliedSpeedKmh;
       fresh.lastUpdated = new Date();
-      if (nextProgress >= 1) fresh.status = 'completed';
       await fresh.save();
 
       ioRef.emit('broadcastLocation', {
@@ -65,11 +83,11 @@ const startSimulation = (vehicle, route) => {
         longitude: point.lng,
         speed: fresh.speed,
         routeProgress: nextProgress,
+        routeDirection: direction,
+        rerouted,
         status: fresh.status,
         timestamp: Date.now(),
       });
-
-      if (nextProgress >= 1) stopSimulation(vehicle._id);
     } catch (err) {
       console.error('Simulation tick error:', err.message);
       stopSimulation(vehicle._id);
@@ -79,14 +97,12 @@ const startSimulation = (vehicle, route) => {
   activeTimers.set(key, timer);
 };
 
-// Called once at server boot. If the process restarted (Render free-tier
+// Called once at server boot. If the process restarted (free-tier
 // spin-down, crash, deploy) while a bus was mid-route, its DB status is
-// still 'running' but no interval is actually driving it anymore - this
-// resumes those from wherever routeProgress left off instead of leaving
-// them stuck.
+// still 'running' but nothing is actually driving it anymore - this
+// resumes those from wherever routeProgress left off.
 const resumeInFlightVehicles = async () => {
   if (!ioRef) return;
-  const Route = require('../models/Route');
   const running = await Vehicle.find({ status: 'running' });
   for (const vehicle of running) {
     if (!vehicle.routeId) continue;

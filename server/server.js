@@ -8,6 +8,7 @@ const { Server } = require('socket.io');
 const connectDB = require('./config/db');
 const registerSocketHandlers = require('./socket');
 const simulator = require('./socket/simulator');
+const scheduler = require('./socket/scheduler');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const authRoutes = require('./routes/authRoutes');
@@ -43,6 +44,8 @@ app.use('/api', userRoutes);
 registerSocketHandlers(io);
 simulator.setIo(io); // lets admin-triggered status changes drive smooth movement
 simulator.resumeInFlightVehicles();
+scheduler.start(); // auto-starts buses at their scheduled departure time/days
+
 app.use(notFound);
 app.use(errorHandler);
 

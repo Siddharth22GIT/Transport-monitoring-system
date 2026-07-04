@@ -107,15 +107,21 @@ const updateStatus = async (req, res, next) => {
       if (!route || route.stops.length < 2) {
         return res.status(400).json({ message: 'Route needs at least a start and end location' });
       }
-      // restart from the beginning if it already completed a previous run
-      if (vehicle.routeProgress >= 1) vehicle.routeProgress = 0;
+      // Always start a fresh run from the beginning, forward direction -
+      // the simulator itself now handles auto-reroute (reverse) once a
+      // route finishes, so "Start" should never resume mid-reverse-leg.
+      vehicle.routeProgress = 0;
+      vehicle.routeDirection = 1;
       vehicle.status = 'running';
       await vehicle.save();
       simulator.startSimulation(vehicle, route);
     } else {
       simulator.stopSimulation(vehicle._id);
       vehicle.status = status;
-      if (status === 'idle') vehicle.routeProgress = 0;
+      if (status === 'idle') {
+        vehicle.routeProgress = 0;
+        vehicle.routeDirection = 1;
+      }
       await vehicle.save();
     }
 

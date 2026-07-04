@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Bus, MapPinned, LayoutDashboard, LogOut, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import NotificationBell from './NotificationBell';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -34,6 +35,8 @@ export default function Navbar() {
             <LayoutDashboard size={17} /> <span className="hidden sm:inline">Admin</span>
           </Link>
         )}
+
+        {user && <NotificationBell />}
 
         {user ? (
           <button
