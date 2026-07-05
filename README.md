@@ -5,7 +5,6 @@ Admin creates routes and starts buses running; passengers search a route,
 see live status, and pin their regulars.
 
 ## Structure
-
 ```
 transit-tracker/
 ├── server/   # Node + Express + MongoDB + Socket.IO API
