@@ -1,12 +1,13 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { MapContainer, TileLayer, Polyline, useMap } from 'react-leaflet';
-import { Bus, Gauge } from 'lucide-react';
+import { Bus, Gauge, Navigation } from 'lucide-react';
 import '../components/leafletIconFix';
 import api from '../api/client';
 import socket from '../api/socket';
 import VehicleMarker from '../components/VehicleMarker';
 import StatusBadge from '../components/StatusBadge';
+import AreYouInBusModal from '../components/AreYouInBusModal';
 import { notify, areNotificationsEnabled } from '../utils/notifications';
 
 const DEFAULT_CENTER = [28.6139, 77.209]; // fallback: New Delhi
@@ -31,6 +32,68 @@ export default function LiveMap() {
   const [selectedVehicleId, setSelectedVehicleId] = useState(null);
   const trackedVehicleNumberRef = useRef(null);
   const milestoneRef = useRef({}); // vehicleNumber -> { half, arriving }
+
+  const [showAskModal, setShowAskModal] = useState(false);
+  const [followingSelf, setFollowingSelf] = useState(false);
+  const [locationError, setLocationError] = useState('');
+  const followingSelfRef = useRef(false);
+  const watchIdRef = useRef(null);
+
+  // Ask "are you in this bus?" once per vehicle per browser tab session -
+  // triggered by arriving here via a search result click (?vehicle=X).
+  useEffect(() => {
+    if (!focusVehicleNumber) return;
+    const askedKey = `wmb_asked_${focusVehicleNumber}`;
+    if (sessionStorage.getItem(askedKey)) return;
+    setShowAskModal(true);
+  }, [focusVehicleNumber]);
+
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current != null) navigator.geolocation.clearWatch(watchIdRef.current);
+    };
+  }, []);
+
+  const dismissModal = () => {
+    if (focusVehicleNumber) sessionStorage.setItem(`wmb_asked_${focusVehicleNumber}`, 'true');
+    setShowAskModal(false);
+  };
+
+  const handleSaysNo = () => {
+    dismissModal();
+  };
+
+  const handleSaysYes = () => {
+    dismissModal();
+    setLocationError('');
+
+    if (!navigator.geolocation) {
+      setLocationError("Your browser doesn't support location sharing - showing the scheduled route instead.");
+      return;
+    }
+
+    const id = navigator.geolocation.watchPosition(
+      (pos) => {
+        followingSelfRef.current = true;
+        setFollowingSelf(true);
+        const { latitude, longitude } = pos.coords;
+        setVehicles((prev) =>
+          prev.map((v) =>
+            v.vehicleNumber === focusVehicleNumber
+              ? { ...v, currentLocation: { type: 'Point', coordinates: [longitude, latitude] } }
+              : v
+          )
+        );
+      },
+      () => {
+        followingSelfRef.current = false;
+        setFollowingSelf(false);
+        setLocationError('Location permission was denied - showing the bus on its usual scheduled route instead.');
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+    );
+    watchIdRef.current = id;
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -57,18 +120,25 @@ export default function LiveMap() {
     socket.connect();
 
     const onBroadcast = ({ vehicleId, latitude, longitude, speed, status, routeProgress, rerouted }) => {
-      setVehicles((prev) =>
-        prev.map((v) =>
-          v.vehicleNumber === vehicleId
-            ? {
-                ...v,
-                currentLocation: { type: 'Point', coordinates: [longitude, latitude] },
-                speed,
-                status: status || v.status,
-              }
-            : v
-        )
-      );
+      // If the passenger told us they're riding this exact bus, their own
+      // GPS (from handleSaysYes) is the source of truth for its position -
+      // don't let the simulated route position overwrite it.
+      const isSelfTracked = vehicleId === trackedVehicleNumberRef.current && followingSelfRef.current;
+
+      if (!isSelfTracked) {
+        setVehicles((prev) =>
+          prev.map((v) =>
+            v.vehicleNumber === vehicleId
+              ? {
+                  ...v,
+                  currentLocation: { type: 'Point', coordinates: [longitude, latitude] },
+                  speed,
+                  status: status || v.status,
+                }
+              : v
+          )
+        );
+      }
 
       // Only alert for the bus the passenger is actually watching (the one
       // they searched for, or clicked in the sidebar) - not every bus on
@@ -115,7 +185,22 @@ export default function LiveMap() {
   const focusedVehicle = vehicles.find((v) => v._id === selectedVehicleId);
 
   return (
-    <div className="flex flex-col md:flex-row h-[calc(100vh-61px)]">
+    <div className="flex flex-col md:flex-row h-[calc(100vh-61px)] relative">
+      {showAskModal && focusVehicleNumber && (
+        <AreYouInBusModal vehicleNumber={focusVehicleNumber} onYes={handleSaysYes} onNo={handleSaysNo} />
+      )}
+
+      {followingSelf && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[900] flex items-center gap-1.5 rounded-full bg-[var(--color-go)] text-white text-xs font-bold px-3 py-1.5 shadow-md">
+          <Navigation size={13} /> Showing your live location as this bus
+        </div>
+      )}
+      {locationError && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[900] rounded-full bg-[var(--color-stop)] text-white text-xs font-bold px-3 py-1.5 shadow-md max-w-md text-center">
+          {locationError}
+        </div>
+      )}
+
       <aside className="w-full md:w-80 border-b md:border-b-0 md:border-r border-[var(--color-border)] bg-[var(--color-surface)] p-4 overflow-y-auto">
         <label className="block text-xs font-bold text-[var(--color-ink-dim)] mb-1.5 uppercase tracking-wide">Filter by route</label>
         <select
