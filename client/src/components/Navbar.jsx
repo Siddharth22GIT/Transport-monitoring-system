@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bus, MapPinned, LayoutDashboard, LogOut, LogIn, Menu, X } from 'lucide-react';
+import { Bus, MapPinned, LayoutDashboard, LogOut, LogIn, Menu, X, ShieldCheck, Phone } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
 
@@ -36,6 +36,12 @@ export default function Navbar() {
           )}
           <Link to="/map" className="flex items-center gap-1.5 text-[var(--color-ink-dim)] hover:text-[var(--color-primary)] transition px-2 py-1.5">
             <Bus size={17} /> Live Map
+          </Link>
+          <Link to="/travel-guidelines" className="hidden md:flex items-center gap-1.5 text-[var(--color-ink-dim)] hover:text-[var(--color-primary)] transition px-2 py-1.5">
+            <ShieldCheck size={17} /> Guidelines
+          </Link>
+          <Link to="/emergency-contacts" className="hidden md:flex items-center gap-1.5 text-[var(--color-ink-dim)] hover:text-[var(--color-stop)] transition px-2 py-1.5">
+            <Phone size={17} /> Emergency
           </Link>
           {user?.role === 'admin' && (
             <Link to="/admin" className="flex items-center gap-1.5 text-[var(--color-ink-dim)] hover:text-[var(--color-primary)] transition px-2 py-1.5">
@@ -85,6 +91,12 @@ export default function Navbar() {
           )}
           <Link to="/map" onClick={closeMobile} className="flex items-center gap-2 py-2.5 text-[var(--color-ink)]">
             <Bus size={18} /> Live Map
+          </Link>
+          <Link to="/travel-guidelines" onClick={closeMobile} className="flex items-center gap-2 py-2.5 text-[var(--color-ink)]">
+            <ShieldCheck size={18} /> Travel Guidelines
+          </Link>
+          <Link to="/emergency-contacts" onClick={closeMobile} className="flex items-center gap-2 py-2.5 text-[var(--color-stop)]">
+            <Phone size={18} /> Emergency Contacts
           </Link>
           {user?.role === 'admin' && (
             <Link to="/admin" onClick={closeMobile} className="flex items-center gap-2 py-2.5 text-[var(--color-ink)]">
