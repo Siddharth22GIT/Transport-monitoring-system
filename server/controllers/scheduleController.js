@@ -13,11 +13,11 @@ const listSchedules = async (req, res, next) => {
 
 const createSchedule = async (req, res, next) => {
   try {
-    const { vehicleId, routeId, departureTime, arrivalTime, daysOfWeek } = req.body;
+    const { vehicleId, routeId, departureTime, arrivalTime, date, daysOfWeek } = req.body;
     if (!vehicleId || !routeId || !departureTime || !arrivalTime) {
       return res.status(400).json({ message: 'vehicleId, routeId, departureTime, arrivalTime are required' });
     }
-    const schedule = await Schedule.create({ vehicleId, routeId, departureTime, arrivalTime, daysOfWeek });
+    const schedule = await Schedule.create({ vehicleId, routeId, departureTime, arrivalTime, date, daysOfWeek });
     res.status(201).json(schedule);
   } catch (err) {
     next(err);

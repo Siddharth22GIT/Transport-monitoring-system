@@ -13,8 +13,11 @@ const vehicleSchema = new mongoose.Schema(
       type: { type: String, enum: ['Point'], default: 'Point' },
       coordinates: { type: [Number], default: [0, 0] }, // [lng, lat]
     },
-    // Fraction of the route completed (0 to 1), lets a run resume/redraw consistently
+    // Fraction of the current leg completed (0 to 1), lets a run resume/redraw consistently
     routeProgress: { type: Number, default: 0 },
+    // 1 = start->end, -1 = end->start. Flips automatically when a leg finishes,
+    // so the bus reroutes back along the same path instead of just stopping.
+    routeDirection: { type: Number, enum: [1, -1], default: 1 },
     speed: { type: Number, default: 0 },
     lastUpdated: { type: Date, default: Date.now },
   },

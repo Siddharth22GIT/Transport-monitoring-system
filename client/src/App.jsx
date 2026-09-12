@@ -9,6 +9,8 @@ import Register from './pages/Register';
 import LiveMap from './pages/LiveMap';
 import PassengerSearch from './pages/PassengerSearch';
 import AdminDashboard from './pages/AdminDashboard';
+import TravelGuidelines from './pages/TravelGuidelines';
+import EmergencyContacts from './pages/EmergencyContacts';
 
 export default function App() {
   return (
@@ -21,6 +23,8 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/map" element={<LiveMap />} />
+            <Route path="/travel-guidelines" element={<TravelGuidelines />} />
+            <Route path="/emergency-contacts" element={<EmergencyContacts />} />
             <Route
               path="/search"
               element={

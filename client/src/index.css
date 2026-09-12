@@ -7,17 +7,24 @@
 
   --color-bg: #f5f7fb;          /* soft off-white page background */
   --color-surface: #ffffff;     /* card surface */
-  --color-surface-alt: #eef1f8; /* subtle secondary surface */
-  --color-border: #e2e6f0;
-  --color-ink: #14161f;         /* primary text - near black */
-  --color-ink-dim: #61667a;     /* secondary text */
+  --color-surface-alt: #f3f0f5; /* subtle secondary surface */
+  --color-border: #ece5e8;
+  --color-ink: #1a1418;         /* primary text - near black */
+  --color-ink-dim: #6b6069;     /* secondary text */
 
-  --color-primary: #2f5fff;     /* bold electric blue - primary CTA/brand */
-  --color-primary-dark: #1f43d6;
+  --color-primary: #e0263f;     /* RedBus-style bold red - primary CTA/brand */
+  --color-primary-dark: #b81a30;
+  --color-primary-tint: #fdeaec;
   --color-accent: #ff8a1e;      /* bus-signal orange - secondary CTA */
   --color-go: #16a34a;          /* running/active */
   --color-idle: #94a3b8;        /* idle/off */
   --color-stop: #e11d48;        /* delayed/error */
+
+  /* hero gradient stops, dusk-to-dawn like the reference banner */
+  --color-hero-1: #4c3b7a;
+  --color-hero-2: #7c5aa6;
+  --color-hero-3: #4f8fb0;
+  --color-hero-4: #6fbf8e;
 }
 
 body {
@@ -42,4 +49,13 @@ body {
 }
 .pulse-live {
   animation: pulse-ring 1.6s ease-out infinite;
+}
+
+@keyframes drive {
+  0% { transform: translateX(-6%); }
+  50% { transform: translateX(6%); }
+  100% { transform: translateX(-6%); }
+}
+.hero-bus {
+  animation: drive 5s ease-in-out infinite;
 }
