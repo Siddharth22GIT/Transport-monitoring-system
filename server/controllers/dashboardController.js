@@ -7,7 +7,7 @@ const getStats = async (req, res, next) => {
   try {
     const [totalVehicles, activeVehicles, totalRoutes, totalSchedules] = await Promise.all([
       Vehicle.countDocuments(),
-      Vehicle.countDocuments({ status: 'on-route' }),
+      Vehicle.countDocuments({ status: 'running' }),
       Route.countDocuments(),
       Schedule.countDocuments(),
     ]);
